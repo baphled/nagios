@@ -1,5 +1,7 @@
 nagios Cookbook
 ===============
+[![Build Status](https://secure.travis-ci.org/tas50/nagios.png?branch=master)](http://travis-ci.org/tas50/nagios)
+
 Installs and configures Nagios server and NRPE client. Chef nodes are automatically discovered using search, and Nagios host groups are created based on Chef roles and optionally environments as well. NRPE client commands can be defined by using a LWRP, and Nagios service checks applied to hostgroups using definitions in data bag items.
 
 
@@ -43,18 +45,29 @@ The following attributes are used by both client and server recipes.
 ### client
 The following attributes are used for the NRPE client
 
+##### installation method
 * `node['nagios']['client']['install_method']` - whether to install from package or source. Default chosen by platform based on known packages available for NRPE: debian/ubuntu 'package', Redhat/CentOS/Fedora/Scientific: source
-* `node['nagios']['plugins']['url']` - url to retrieve the plugins source
-* `node['nagios']['plugins']['version']` - version of the plugins source to download
-* `node['nagios']['plugins']['checksum']` - checksum of the plugins source tarball
-* `node['nagios']['nrpe']['home']` - home directory of NRPE, default /usr/lib/nagios
-* `node['nagios']['nrpe']['conf_dir']` - location of the nrpe configuration, default /etc/nagios
+* `node['nagios']['nrpe']['packages']` - nrpe / plugin packages to install. The default attribute for RHEL/Fedora platforms contains a bare minimum set of packages. The full list of available packages is available at: `http://dl.fedoraproject.org/pub/epel/6/x86_64/repoview/letter_n.group.html`
 * `node['nagios']['nrpe']['url']` - url to retrieve NRPE source
 * `node['nagios']['nrpe']['version']` - version of NRPE source to download
 * `node['nagios']['nrpe']['checksum']` - checksum of the NRPE source tarball
-* `node['nagios']['nrpe']['packages']` - nrpe / plugin packages to install. The default attribute for RHEL/Fedora platforms contains a bare minimum set of packages. The full list of available packages is available at: `http://dl.fedoraproject.org/pub/epel/6/x86_64/repoview/letter_n.group.html`
+* `node['nagios']['plugins']['url']` - url to retrieve the plugins source from
+* `node['nagios']['plugins']['version']` - version of the plugins source to download
+* `node['nagios']['plugins']['checksum']` - checksum of the plugins source tarball
+
+##### directories and paths
+* `node['nagios']['nrpe']['home']` - home directory of NRPE
+* `node['nagios']['nrpe']['conf_dir']` - location of the nrpe configuration
+* `node['nagios']['nrpe']['ssl_lib_dir']` - ssl directory used by NRPE
+* `node['nagios']['nrpe']['pidfile']` - location to store the NRPE pid file
+
+##### authorization and server discovery
 * `node['nagios']['server_role']` - the role that the Nagios server will have in its run list that the clients can search for.
 * `node['nagios']['allowed_hosts']` - additional hosts that are allowed to connect to this client. Must be an array of strings (i.e. `%w(test.host other.host)`). These hosts are added in addition to 127.0.0.1 and IPs that are found via search.
+
+##### misc
+* `node['nagios']['nrpe']['dont_blame_nrpe']` - allows the server to send additional values to NRPE via arguments.  this needs to be enabled for most checks to function
+* `node['nagios']['nrpe']['command_timeout']` - the amount of time NRPE will wait for a command to execute before timing out
 
 ### server
 The following attributes are used for the Nagios server
@@ -89,7 +102,7 @@ The following attributes are used for the Nagios server
 * `node['nagios']['additional_contacts']` - additional contacts to be utilized for notifying of status changes. Example: `node['nagios']['additional_contacts']['pagerduty'] = true`.
 * `node['nagios']['sysadmin_email']` - default notification email.
 * `node['nagios']['sysadmin_sms_email']` - default notification sms.
-* `node['nagios']['server_auth_method']` - authentication with the server can be done with openid (using `apache2::mod_auth_openid`), cas (using `apache2::mod_auth_cas`),ldap (using `apache2::mod_authnz_ldap`), or htauth (basic). The default is openid, "cas" will utilize cas authentication, "ldap" will utilize LDAP authentication, and any other value will use htauth (basic).
+* `node['nagios']['server_auth_method']` - authentication with the server can be done with openid (using `apache2::mod_auth_openid`), cas (using `apache2::mod_auth_cas`),ldap (using `apache2::mod_authnz_ldap`), or htauth (basic). The default is htauth. "openid" will utilize openid authentication, "cas" will utilize cas authentication, "ldap" will utilize LDAP authentication, and any other value will use htauth (basic).
 * `node['nagios']['cas_login_url']` - login url for cas if using cas authentication.
 * `node['nagios']['cas_validate_url']` - validation url for cas if using cas authentication.
 * `node['nagios']['cas_validate_server']` - whether to validate the server cert. Defaults to off.
@@ -101,22 +114,28 @@ The following attributes are used for the Nagios server
 * `node['nagios']['users_databag']` - the databag containing users to search for. defaults to users
 * `node['nagios']['users_databag_group']` - users databag group considered Nagios admins.  defaults to sysadmin
 * `node['nagios']['host_name_attribute']` - node attribute to use for naming the host. Must be unique across monitored nodes. Defaults to hostname
+* `node['nagios']['regexp_matching']` - Attribute to enable [regexp matching](http://nagios.sourceforge.net/docs/3_0/configmain.html#use_regexp_matching). Defaults to 0.
 * `node['nagios']['large_installation_tweaks']` - Attribute to enable [large installation tweaks](http://nagios.sourceforge.net/docs/3_0/largeinstalltweaks.html). Defaults to 0.
 * `node['nagios']['templates']`
 * `node['nagios']['interval_length']` - minimum interval.
 
-* `node['nagios']['default_host']['check_interval']`
-* `node['nagios']['default_host']['retry_interval']`
-* `node['nagios']['default_host']['max_check_attempts']`
-* `node['nagios']['default_host']['notification_interval']`
+These set directives in the default host template. Unless explicitly
+overridden, they will be inheirited by the host definitions for each
+disovered node and `nagios_unmanagedhosts` data bag. For more
+information about these directives, see the Nagios documentation for
+[host definitions](http://nagios.sourceforge.net/docs/3_0/objectdefinitions.html#host).
 
-* `node['nagios']['default_service']['check_interval']`
-* `node['nagios']['default_service']['retry_interval']`
-* `node['nagios']['default_service']['max_check_attempts']`
-* `node['nagios']['default_service']['notification_interval']`
+* `node['nagios']['default_host']['flap_detection']` - Defaults to `true`.
+* `node['nagios']['default_host']['check_period']` - Defaults to `'24x7'`.
+* `node['nagios']['default_host']['check_interval']` - In seconds. Must be divisible by `node['nagios']['interval_length']`. Defaults to `15`.
+* `node['nagios']['default_host']['retry_interval']` - In seconds. Must be divisible by `node['nagios']['interval_length']`. Defaults to `15`.
+* `node['nagios']['default_host']['max_check_attempts']` - Defaults to `1`.
+* `node['nagios']['default_host']['check_command']` - Defaults to the pre-defined command `'check-host-alive'`.
+* `node['nagios']['default_host']['notification_interval']` - In seconds. Must be divisible by `node['nagios']['interval_length']`. Defaults to `300`.
+* `node['nagios']['default_host']['notification_options']` - Defaults to `'d,u,r'`.
 
 * `node['nagios']['server']['web_server']` - web server to use. supports Apache or Nginx, default "apache"
-* `node['nagios']['server']['nginx_dispatch']` - nginx dispatch method. support cgi or php, default "cgi"
+* `node['nagios']['server']['nginx_dispatch']` - nginx dispatch method. supports cgi or php, default "cgi"
 * `node['nagios']['server']['stop_apache']` - stop apache service if using nginx, default false
 * `node['nagios']['server']['redirect_root']` - if using Apache, should http://server/ redirect to http://server/nagios3 automatically, default false
 * `node['nagios']['server']['normalize_hostname']` - If set to true, normalize all hostnames in hosts.cfg to lowercase. Defaults to false.
@@ -172,7 +191,7 @@ Installs the Nagios server from packages. Default for Debian / Ubuntu systems.
 Installs the Nagios server from source. Default for Red Hat / Fedora based systems as native packages for Nagios are not available in the default repositories.
 
 ### pagerduty
-Installs and configures pagerduty plugin for Nagios. You need to set a `node['nagios']['pagerduty_key']` attribute on your server for this to work. This can be set through environments so that you can use different API keys for servers in production vs staging for instance.
+Installs pagerduty plugin for nagios. If you only have a single pagerduty key, you can simply set a `node['nagios']['pagerduty_key']` attribute on your server.  For multiple pagerduty key configuration see Pager Duty under Data Bags.
 
 This recipe was written based on the [Nagios Integration Guide](http://www.pagerduty.com/docs/guides/nagios-integration-guide) from PagerDuty which explains how to get an API key for your Nagios server.
 
@@ -267,8 +286,7 @@ Create a nagios\_servicegroups data bag that will contain definitions for servic
 }
 ```
 
-You can group your services by using the "servicegroups" keyword in your services data bags. For example, to have your ssh
-checks show up under the ops service group, you could define it like this:
+You can group your services by using the "servicegroups" keyword in your services data bags. For example, to have your ssh checks show up under the ops service group, you could define it like this:
 
 ```javascript
 {
@@ -280,7 +298,7 @@ checks show up under the ops service group, you could define it like this:
 ```
 
 ### Service Dependencies
-Create a nagios\_servicedependencies data bag that will contain definitions for service dependencies. Each service dependency will be named based on the id of the data bag. Each service dependency requires either a dependent host name and/or hostgroup name, dependent service description, host name and/or hostgroup name, and service description.
+Create a nagios\_servicedependencies data bag that will contain definitions for service dependencies. Each service dependency will be named based on the id of the data bag. Each service dependency requires a dependent host name and/or hostgroup name, dependent service description, host name and/or hostgroup name, and service description.
 
 ```javascript
 {
@@ -370,6 +388,26 @@ Then, in the service data bag,
 }
 ```
 
+You can also define escalations using wildcards, like so:
+
+```javascript
+{
+  "id": "first-warning",
+  "contact_groups": "sysadmin",
+  "hostgroup_name": "*",
+  "first_notification": "1",
+  "last_notification": "0",
+  "notification_interval": "21600",
+  "escalation_period": "24x7",
+  "escalation_options": "w",
+  "hostgroup_name": "*",
+  "service_description": "*",
+  "register": 1
+}
+```
+
+This configures notifications for all warnings to repeat on a given interval (under the default config, every 6 hours). (Note that you must register this kind of escalation, as it is not a template.)
+
 ### Event Handlers
 You can optionally define event handlers to trigger on service alerts by creating a nagios\_eventhandlers data bag that will contain definitions of event handlers for services monitored via Nagios.
 
@@ -393,6 +431,18 @@ Once you've defined an event handler you will need to add the event handler to a
 }
 ```
 
+### Pager Duty
+You can define pagerduty contacts and keys by creating nagios\_pagerduty data bags that contain the contact and
+the relevant key. Setting admin\_contactgroup to "true" will add this pagerduty contact to the admin contact group
+created by this cookbook.
+
+       {
+         "id": "pagerduty_critical",
+         "admin_contactgroup": "true",
+         "key": "a33e5ef0ac96772fbd771ddcccd3ccd0"
+       }
+
+You can add these contacts to any contactgroups you create.
 
 Monitoring Role
 ---------------

@@ -22,11 +22,14 @@
 # limitations under the License.
 #
 
-default['nagios']['pagerduty_key'] = ''
-default['nagios']['pagerduty']['script_url'] = 'https://raw.github.com/PagerDuty/pagerduty-nagios-pl/master/pagerduty_nagios.pl'
-unless node['nagios']['pagerduty_key'].empty?
+node.set['nagios']['pagerduty']['key'] = node['nagios']['pagerduty_key']
+default['nagios']['pagerduty']['key'] = ''
+unless node['nagios']['pagerduty']['key'].empty?
   default['nagios']['additional_contacts'] = { 'pagerduty' => true }
 end
+default['nagios']['pagerduty']['script_url'] = 'https://raw.github.com/PagerDuty/pagerduty-nagios-pl/master/pagerduty_nagios.pl'
+default['nagios']['pagerduty']['service_notification_options'] = 'w,u,c,r'
+default['nagios']['pagerduty']['host_notification_options'] = 'd,r'
 
 case node['platform_family']
 when 'debian'
@@ -60,20 +63,29 @@ default['nagios']['ssl_cert_key']  = "#{node['nagios']['conf_dir']}/certificates
 default['nagios']['ssl_req']       = '/C=US/ST=Several/L=Locality/O=Example/OU=Operations/' +
   "CN=#{node['nagios']['server_name']}/emailAddress=ops@#{node['nagios']['server_name']}"
 
+# nagios server name and webserver vname.  this can be changed to allow for the installation of icinga
+default['nagios']['server']['name']  = 'nagios'
+default['nagios']['server']['vname'] = 'nagios3'
+
 # for server from source installation
 default['nagios']['server']['url']      = 'http://prdownloads.sourceforge.net/sourceforge/nagios'
-default['nagios']['server']['version']  = '3.5.0'
-default['nagios']['server']['checksum'] = '469381b2954392689c85d3db733e8da4bd43b806b3d661d1a7fbd52dacc084db'
+default['nagios']['server']['version']  = '3.5.1'
+default['nagios']['server']['checksum'] = 'ca9dd68234fa090b3c35ecc8767b2c9eb743977eaf32612fa9b8341cc00a0f99'
+default['nagios']['server']['src_dir'] = 'nagios'
+
+# for server from packages installation
+default['nagios']['server']['packages'] = %w[nagios3 nagios-nrpe-plugin nagios-images]
 
 default['nagios']['notifications_enabled']     = 0
 default['nagios']['check_external_commands']   = true
 default['nagios']['default_contact_groups']    = %w{admins}
 default['nagios']['sysadmin_email']            = 'root@localhost'
 default['nagios']['sysadmin_sms_email']        = 'root@localhost'
-default['nagios']['server_auth_method']        = 'openid'
+default['nagios']['server_auth_method']        = 'htauth'
 default['nagios']['users_databag']             = 'users'
 default['nagios']['users_databag_group']       = 'sysadmin'
 default['nagios']['host_name_attribute']       = 'hostname'
+default['nagios']['regexp_matching']           = 0
 default['nagios']['large_installation_tweaks'] = 0
 
 # for cas authentication
@@ -94,13 +106,17 @@ default['nagios']['ldap_authoritative'] = nil
 default['nagios']['templates']       = Mash.new
 default['nagios']['interval_length'] = 1
 
+default['nagios']['default_host']['flap_detection']        = true
+default['nagios']['default_host']['check_period']          = '24x7'
 # Provide all interval values in seconds
 default['nagios']['default_host']['check_interval']        = 15
 default['nagios']['default_host']['retry_interval']        = 15
 default['nagios']['default_host']['max_check_attempts']    = 1
+default['nagios']['default_host']['check_command']         = 'check-host-alive'
 default['nagios']['default_host']['notification_interval'] = 300
 default['nagios']['default_host']['first_notification_delay'] = 0
 default['nagios']['default_host']['flap_detection']        = true
+default['nagios']['default_host']['notification_options']  = 'd,u,r'
 
 default['nagios']['default_service']['check_interval']        = 60
 default['nagios']['default_service']['retry_interval']        = 15

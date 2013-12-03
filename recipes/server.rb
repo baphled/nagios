@@ -26,7 +26,7 @@ include_recipe 'nagios::client'
 
 # workaround to allow for a nagios server install from source using the override attribute on debian/ubuntu (COOK-2350)
 if platform_family?('debian') && node['nagios']['server']['install_method'] == 'source'
-  nagios_service_name = 'nagios'
+  nagios_service_name = node['nagios']['server']['name']
 else
   nagios_service_name = node['nagios']['server']['service_name']
 end
@@ -48,7 +48,7 @@ when :apache
 else
   Chef::Log.fatal('Unknown web server option provided for Nagios server: ' <<
                   "#{node['nagios']['server']['web_server']} provided. Allowed: :nginx or :apache")
-  raise 'Unknown web server option provided for Nagios server'
+  fail 'Unknown web server option provided for Nagios server'
 end
 
 # find nagios web interface users from the defined data bag
@@ -68,7 +68,7 @@ when 'openid'
   else
     Chef::Log.fatal('OpenID authentication for Nagios is not supported on NGINX')
     Chef::Log.fatal("Set node['nagios']['server_auth_method'] attribute in your role: #{node['nagios']['server_role']}")
-    raise
+    fail
   end
 when 'cas'
   if web_srv == :apache
@@ -76,7 +76,7 @@ when 'cas'
   else
     Chef::Log.fatal('CAS authentication for Nagios is not supported on NGINX')
     Chef::Log.fatal("Set node['nagios']['server_auth_method'] attribute in your role: #{node['nagios']['server_role']}")
-    raise
+    fail
   end
 when 'ldap'
   if web_srv == :apache
@@ -84,7 +84,7 @@ when 'ldap'
   else
     Chef::Log.fatal('LDAP authentication for Nagios is not supported on NGINX')
     Chef::Log.fatal("Set node['nagios']['server_auth_method'] attribute in your role: #{node['nagios']['server_role']}")
-    raise
+    fail
   end
 else
   directory node['nagios']['conf_dir']
@@ -106,9 +106,9 @@ nodes = []
 hostgroups = []
 
 if node['nagios']['multi_environment_monitoring']
-  nodes = search(:node, 'hostname:[* TO *]')
+  nodes = search(:node, 'hostname:*')
 else
-  nodes = search(:node, "hostname:[* TO *] AND chef_environment:#{node.chef_environment}")
+  nodes = search(:node, "hostname:* AND chef_environment:#{node.chef_environment}")
 end
 
 if nodes.empty?
@@ -194,7 +194,8 @@ if node['nagios']['additional_contacts']
   end
 end
 
-nagios_conf 'nagios' do
+nagios_conf node['nagios']['server']['name'] do
+  source 'nagios.cfg.erb'
   config_subdir false
 end
 
@@ -217,8 +218,8 @@ directory "#{node['nagios']['state_dir']}/rw" do
 end
 
 execute 'archive-default-nagios-object-definitions' do
-  command "mv #{node['nagios']['config_dir']}/*_nagios*.cfg #{node['nagios']['conf_dir']}/dist"
-  not_if { Dir.glob("#{node['nagios']['config_dir']}/*_nagios*.cfg").empty? }
+  command "mv #{node['nagios']['config_dir']}/*_#{node['nagios']['server']['name']}*.cfg #{node['nagios']['conf_dir']}/dist"
+  not_if { Dir.glob("#{node['nagios']['config_dir']}/*_#{node['nagios']['server']['name']}*.cfg").empty? }
 end
 
 directory "#{node['nagios']['conf_dir']}/certificates" do
@@ -235,14 +236,18 @@ bash 'Create SSL Certificates' do
   openssl req -subj "#{node['nagios']['ssl_req']}" -new -x509 -nodes -sha1 -days 3650 -key nagios-server.key > nagios-server.crt
   cat nagios-server.key nagios-server.crt > nagios-server.pem
   EOH
-  not_if { ::File.exists?("#{node['nagios']['ssl_cert_file']}") }
+  not_if { ::File.exists?(node['nagios']['ssl_cert_file']) }
 end
 
-%w{ nagios cgi }.each do |conf|
-  nagios_conf conf do
-    config_subdir false
-    variables(:nagios_service_name => nagios_service_name)
-  end
+nagios_conf node['nagios']['server']['name'] do
+  config_subdir false
+  source 'nagios.cfg.erb'
+  variables(:nagios_service_name => nagios_service_name)
+end
+
+nagios_conf 'cgi' do
+  config_subdir false
+  variables(:nagios_service_name => nagios_service_name)
 end
 
 nagios_conf 'timeperiods'
