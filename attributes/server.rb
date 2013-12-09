@@ -121,8 +121,6 @@ default['nagios']['default_host']['notification_interval'] = 300
 default['nagios']['default_host']['first_notification_delay'] = 0
 default['nagios']['default_host']['flap_detection']        = true
 default['nagios']['default_host']['notification_options']  = 'd,u,r'
-default['nagios']['default_host']['first_notification_delay'] = 0
-default['nagios']['default_host']['flap_detection']        = true
 
 default['nagios']['default_service']['check_interval']        = 60
 default['nagios']['default_service']['retry_interval']        = 15
